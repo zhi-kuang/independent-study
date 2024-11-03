@@ -1,6 +1,6 @@
-# 对应任务任务自动生成学情报告与分析
+# 对应任务-评估学生的学习兴趣和认知水平
 使用技术node.js=10.8.2 
-## 初始化并下载echars依赖 
+## 初始化并下载echars依赖  
 
 ### 初始化
 
@@ -25,14 +25,12 @@ npx serve .
 
 
 ## 文件说明
-
-data.json存储数据
+knowledge_point.json和knowledge_point_trends.json存储数据，其中knowledge_point.json保存学生的知识点掌握情况，knowledge_point_trends.json保存学生的兴趣变化趋势
 
 index.html是展示页面
 
 ## 效果演示
-![image](https://github.com/user-attachments/assets/b8121bbf-4375-45da-b881-5c54103f9a56)
-![image](https://github.com/user-attachments/assets/283d4d6f-b12b-452f-868f-df001059495a)
-![image](https://github.com/user-attachments/assets/696bc7e0-5735-495d-9ad0-0e849737b9f8)
-![image](https://github.com/user-attachments/assets/7a7cc462-d668-45c7-a0a1-d6c9c876f016)
+![image](https://github.com/user-attachments/assets/6ba04403-892b-4021-b1e4-c1a78f47feaf)
+
+
 
