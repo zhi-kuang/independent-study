@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生知识点掌握情况</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #4CAF50;
+        }
+        #inputSection {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        label {
+            font-size: 16px;
+        }
+        input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input[type="number"]:focus {
+            border-color: #3e8e41;
+        }
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #charts {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+        .chart {
+            width: 45%;
+            height: 400px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .chart-title {
+            text-align: center;
+            margin: 10px 0;
+            color: #333;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<h2>根据学生 ID 显示知识点掌握情况</h2>
+<div id="inputSection">
+    <label for="studentId">输入学生 ID:</label>
+    <input type="number" id="studentId" min="1" required>
+    <button onclick="showCharts()">查看</button>
+</div>
+<div id="charts"></div>
+
+<script>
+    let studentData = {};
+    let trendData = {};
+    const pointsPerChart = 20; // 每个图表展示的知识点数量
+
+    // 读取知识点数据
+    fetch('knowledge_point.json')
+        .then(response => response.json())
+        .then(data => {
+            studentData = data.students;
+        })
+        .catch(error => console.error('Error loading JSON:', error));
+
+    // 读取知识点变化趋势数据
+    fetch('knowledge_point_trends.json')
+        .then(response => response.json())
+        .then(data => {
+            trendData = data.students;
+        })
+        .catch(error => console.error('Error loading trends JSON:', error));
+
+    function showCharts() {
+        const studentId = parseInt(document.getElementById('studentId').value);
+        const student = studentData.find(s => s.student_id === studentId);
+        const trends = trendData.find(s => s.student_id === studentId);
+
+        const chartsContainer = document.getElementById('charts');
+        chartsContainer.innerHTML = ''; // 清空之前的图表
+
+        if (student && trends) {
+            const knowledgePoints = student.knowledge_points.map(kp => Object.values(kp)[0]);
+            const pointNames = knowledgePoints.map((_, index) => `知识点${index + 1}`);
+            const trendPoints = trends.knowledge_points.map(kp => Object.values(kp)[0]);
+
+            // 每 pointsPerChart 个知识点生成一个雷达图、柱状图和变化趋势图
+            for (let i = 0; i < knowledgePoints.length; i += pointsPerChart) {
+                const pointsSubset = knowledgePoints.slice(i, i + pointsPerChart);
+                const namesSubset = pointNames.slice(i, i + pointsPerChart);
+                const trendsSubset = trendPoints.slice(i, i + pointsPerChart);
+
+                renderRadarChart(namesSubset, pointsSubset, i / pointsPerChart);
+                renderBarChart(namesSubset, pointsSubset, i / pointsPerChart);
+                renderTrendChart(namesSubset, trendsSubset, i / pointsPerChart);
+            }
+        } else {
+            alert('未找到该学生的知识点信息或变化趋势！');
+        }
+    }
+
+    function renderRadarChart(pointNames, knowledgePoints, index) {
+        const radarChartDiv = document.createElement('div');
+        radarChartDiv.id = `radarChart${index}`;
+        radarChartDiv.className = 'chart';
+        document.getElementById('charts').appendChild(radarChartDiv);
+
+        const radarChart = echarts.init(radarChartDiv);
+        const option = {
+            title: {
+                text: `知识点掌握情况`,
+                left: 'center'
+            },
+            tooltip: {},
+            radar: {
+                indicator: pointNames.map((name) => ({ name, max: 1 })),
+                splitArea: {
+                    areaStyle: {
+                        color: ['#fff', '#f2f2f2']
+                    }
+                }
+            },
+            series: [{
+                name: '知识点掌握情况',
+                type: 'radar',
+                data: [{
+                    value: knowledgePoints,
+                    name: '学生掌握情况'
+                }]
+            }]
+        };
+        radarChart.setOption(option);
+    }
+
+    function renderBarChart(pointNames, knowledgePoints, index) {
+        const barChartDiv = document.createElement('div');
+        barChartDiv.id = `barChart${index}`;
+        barChartDiv.className = 'chart';
+        document.getElementById('charts').appendChild(barChartDiv);
+
+        const barChart = echarts.init(barChartDiv);
+        const option = {
+            title: {
+                text: `知识点掌握情况`,
+                left: 'center'
+            },
+            tooltip: {},
+            xAxis: {
+                type: 'category',
+                data: pointNames
+            },
+            yAxis: {
+                type: 'value',
+                max: 1
+            },
+            series: [{
+                name: '掌握情况',
+                type: 'bar',
+                data: knowledgePoints,
+                itemStyle: {
+                    color: '#4CAF50'
+                }
+            }]
+        };
+        barChart.setOption(option);
+    }
+
+    function renderTrendChart(pointNames, trendsSubset, index) {
+        const trendChartDiv = document.createElement('div');
+        trendChartDiv.id = `trendChart${index}`;
+        trendChartDiv.className = 'chart';
+        document.getElementById('charts').appendChild(trendChartDiv);
+
+        const trendChart = echarts.init(trendChartDiv);
+        const option = {
+            title: {
+                text: `学习兴趣变化趋势`
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            legend: {
+                data: pointNames
+            },
+            xAxis: {
+                type: 'category',
+                data: Array.from({ length: 5 }, (_, i) => `阶段 ${i + 1}`)
+            },
+            yAxis: {
+                type: 'value',
+                max: 1
+            },
+            series: pointNames.map((name, i) => ({
+                name: name,
+                type: 'line',
+                data: trendsSubset[i].Trend, // 确保趋势数据存在
+                smooth: true
+            }))
+        };
+        trendChart.setOption(option);
+    }
+</script>
+</body>
+</html>
