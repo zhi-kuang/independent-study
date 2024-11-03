@@ -74,7 +74,7 @@
     </style>
 </head>
 <body>
-<h2>根据学生 ID 显示知识点掌握情况</h2>
+<h2>根据学生 ID 显示知识点掌握情况和学习兴趣</h2>
 <div id="inputSection">
     <label for="studentId">输入学生 ID:</label>
     <input type="number" id="studentId" min="1" required>
@@ -85,7 +85,7 @@
 <script>
     let studentData = {};
     let trendData = {};
-    const pointsPerChart = 20; // 每个图表展示的知识点数量
+    const pointsPerChart = 10; // 每个图表展示的知识点数量
 
     // 读取知识点数据
     fetch('knowledge_point.json')
