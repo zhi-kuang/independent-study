@@ -30,7 +30,7 @@ knowledge_point.json和knowledge_point_trends.json存储数据，其中knowledge
 index.html是展示页面
 
 ## 效果演示
-数据问题：计算学生兴趣变化趋势，由于目前模型只获取知识点掌握情况的最后一个状态，还需要获取知识点掌握情况的开始和中间状态
+存在问题：计算学生兴趣变化趋势，由于目前模型只获取知识点掌握情况的最后一个状态，还需要获取知识点掌握情况的开始和中间状态
 
 ![image](https://github.com/user-attachments/assets/6ba04403-892b-4021-b1e4-c1a78f47feaf)
 
