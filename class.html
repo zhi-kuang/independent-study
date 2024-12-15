@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学情诊断报告</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.3.3/echarts.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 30px;
+        }
+        #charts {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .chart-container {
+            width: 45%;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            transition: transform 0.2s;
+            margin-bottom: 20px;
+        }
+        .chart-container:hover {
+            transform: scale(1.02);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        h2 {
+            color: #0056b3;
+            margin-top: 20px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        p {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #555;
+        }
+        .highlight {
+            color: #d9534f;
+            font-weight: bold;
+        }
+        #classKnowledgePointsSection {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+
+<h1>学情诊断报告</h1>
+<p>平均分: <span class="highlight" id="averageScore"></span></p>
+
+<div id="charts">
+    <div class="chart-container">
+        <h2>学生分布</h2>
+        <div id="studentDistribution" style="height: 400px;"></div>
+    </div>
+    <div class="chart-container">
+        <h2>分数区间分布</h2>
+        <div id="scoreRangeDistribution" style="height: 400px;"></div>
+    </div>
+</div>
+
+<h2>重点关注学生</h2>
+<div style="max-height: 1000px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+    <table id="atRiskStudentsTable" >
+        <tbody id="atRiskStudentsBody"></tbody>
+    </table>
+</div>
+
+
+<h2>班级薄弱知识点 Top 10</h2>
+<table id="weakKnowledgePointsTable">
+    <thead>
+    <tr>
+        <th>知识点</th>
+        <th>掌握概率</th>
+    </tr>
+    </thead>
+    <tbody id="weakKnowledgePointsBody"></tbody>
+</table>
+
+<h2>班级知识点掌握情况</h2>
+<div id="classKnowledgePointsSection"></div>
+
+<script>
+    const pointsPerChart = 30;
+
+    fetch('data.json')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('averageScore').textContent = data.averageScore.toFixed(2);
+
+            // 学生分布饼图
+            const studentDistributionChart = echarts.init(document.getElementById('studentDistribution'));
+            const studentDistributionOption = {
+                series: [{
+                    type: 'pie',
+                    data: [
+                        { value: data.studentDistribution.excellent, name: '优秀' },
+                        { value: data.studentDistribution.good, name: '良好' },
+                        { value: data.studentDistribution.average, name: '中等' },
+                        { value: data.studentDistribution.poor, name: '差' }
+                    ],
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            studentDistributionChart.setOption(studentDistributionOption);
+
+            // 分数区间柱状图
+            const scoreRangeChart = echarts.init(document.getElementById('scoreRangeDistribution'));
+            const scoreRangeOption = {
+                xAxis: { type: 'category', data: ['0-60', '60-80', '80-100'] },
+                yAxis: { type: 'value' },
+                series: [{
+                    data: [
+                        data.scoreRangeDistribution['0-60'],
+                        data.scoreRangeDistribution['60-80'],
+                        data.scoreRangeDistribution['80-100']
+                    ],
+                    type: 'bar',
+                    itemStyle: { color: '#007bff' }
+                }]
+            };
+            scoreRangeChart.setOption(scoreRangeOption);
+
+            /// 风险学生表格
+            const atRiskStudentsBody = document.getElementById('atRiskStudentsBody');
+            const knowledgePointsCount = Object.keys(data.atRiskStudents[0].knowledge_points).length;
+
+            // 创建表头
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = `
+                <th rowspan="2">学生ID</th>
+                <th rowspan="2">准确率</th>
+                <th rowspan="2">分数</th>
+                <th colspan="${knowledgePointsCount}">知识点掌握情况</th>
+            `;
+            thead.appendChild(headerRow);
+            atRiskStudentsTable.appendChild(thead);
+
+            // 填充学生信息和知识点掌握情况
+            data.atRiskStudents.forEach(student => {
+                const rowHeader = document.createElement('tr');
+                rowHeader.innerHTML = `
+                    <td rowspan="2">${student.student_id}</td>
+                    <td rowspan="2">${student.accuracy}</td>
+                    <td rowspan="2">${student.score}</td>
+                    <td>${Object.keys(student.knowledge_points).join('</td><td>')}</td>
+                `;
+                atRiskStudentsBody.appendChild(rowHeader);
+
+                const valuesRow = document.createElement('tr');
+                const knowledgePointsValues = Object.values(student.knowledge_points)
+                    .map(value => value.toFixed(2)).join('</td><td>');
+                valuesRow.innerHTML = `<td>${knowledgePointsValues}</td>`;
+                atRiskStudentsBody.appendChild(valuesRow);
+            });
+
+            // 班级薄弱知识点表格
+            const weakKnowledgePointsBody = document.getElementById('weakKnowledgePointsBody');
+            Object.entries(data.weak_knowledge_point_top10).forEach(([point, probability]) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${point}</td><td>${probability}</td>`;
+                weakKnowledgePointsBody.appendChild(row);
+            });
+
+            // 班级知识点掌握情况 - 多个雷达图和柱状图
+            const classKnowledgePointsSection = document.getElementById('classKnowledgePointsSection');
+            const knowledgePointsEntries = Object.entries(data.class_knowledge_points);
+
+            for (let i = 0; i < knowledgePointsEntries.length; i += pointsPerChart) {
+                const group = knowledgePointsEntries.slice(i, i + pointsPerChart);
+                const radarKeys = group.map(([key]) => key);
+                const radarValues = group.map(([, value]) => value);
+
+                // 雷达图容器
+                const radarContainer = document.createElement('div');
+                radarContainer.classList.add('chart-container');
+                const radarDiv = document.createElement('div');
+                radarDiv.style.height = '400px';
+                radarContainer.appendChild(radarDiv);
+                classKnowledgePointsSection.appendChild(radarContainer);
+
+                // 柱状图容器
+                const barContainer = document.createElement('div');
+                barContainer.classList.add('chart-container');
+                const barDiv = document.createElement('div');
+                barDiv.style.height = '400px';
+                barContainer.appendChild(barDiv);
+                classKnowledgePointsSection.appendChild(barContainer);
+
+                // 雷达图
+                const radarChart = echarts.init(radarDiv);
+                const radarOption = {
+                    title: { text: `知识点掌握情况 - 雷达图 ${i / pointsPerChart + 1}`, left: 'center' },
+                    tooltip: {},
+                    radar: {
+                        indicator: radarKeys.map((key) => ({ name: key, max: 1 })),
+                        shape: 'circle',
+                        splitNumber: 5,
+                    },
+                    series: [{
+                        type: 'radar',
+                        data: [{ value: radarValues, name: '掌握情况' }]
+                    }]
+                };
+                radarChart.setOption(radarOption);
+
+                // 柱状图
+                const barChart = echarts.init(barDiv);
+                const barOption = {
+                    title: { text: `知识点掌握情况 - 柱状图 ${i / pointsPerChart + 1}`, left: 'center' },
+                    xAxis: { type: 'category', data: radarKeys },
+                    yAxis: { type: 'value', max: 1 },
+                    series: [{
+                        data: radarValues,
+                        type: 'bar',
+                        itemStyle: { color: '#007bff' }
+                    }]
+                };
+                barChart.setOption(barOption);
+            }
+        });
+</script>
+</body>
+</html>
