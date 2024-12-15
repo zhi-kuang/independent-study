@@ -160,43 +160,65 @@
             };
             scoreRangeChart.setOption(scoreRangeOption);
 
-            /// 风险学生表格
+            // 风险学生表格
             const atRiskStudentsBody = document.getElementById('atRiskStudentsBody');
-            const knowledgePointsCount = Object.keys(data.atRiskStudents[0].knowledge_points).length;
 
-            // 创建表头
+// 收集所有的知识点名称
+            const knowledgePointsNames = [];
+            data.atRiskStudents.forEach(student => {
+                student.knowledge_points.forEach(knowledge => {
+                    const knowledgePointName = Object.keys(knowledge)[0];
+                    if (!knowledgePointsNames.includes(knowledgePointName)) {
+                        knowledgePointsNames.push(knowledgePointName);
+                    }
+                });
+            });
+
+// 创建表头
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
             headerRow.innerHTML = `
-                <th rowspan="2">学生ID</th>
-                <th rowspan="2">准确率</th>
-                <th rowspan="2">分数</th>
-                <th colspan="${knowledgePointsCount}">知识点掌握情况</th>
-            `;
+    <th rowspan="2">学生ID</th>
+    <th rowspan="2">准确率</th>
+    <th rowspan="2">分数</th>
+    <th colspan="${knowledgePointsNames.length}">知识点掌握情况</th>
+`;
             thead.appendChild(headerRow);
             atRiskStudentsTable.appendChild(thead);
 
-            // 填充学生信息和知识点掌握情况
+// 填充学生信息和知识点掌握情况
             data.atRiskStudents.forEach(student => {
                 const rowHeader = document.createElement('tr');
                 rowHeader.innerHTML = `
-                    <td rowspan="2">${student.student_id}</td>
-                    <td rowspan="2">${student.accuracy}</td>
-                    <td rowspan="2">${student.score}</td>
-                    <td>${Object.keys(student.knowledge_points).join('</td><td>')}</td>
-                `;
+        <td rowspan="2">${student.student_id}</td>
+        <td rowspan="2">${student.accuracy}</td>
+        <td rowspan="2">${student.score}</td>
+        <td>${knowledgePointsNames.join('</td><td>')}</td> <!-- 知识点名称 -->
+    `;
                 atRiskStudentsBody.appendChild(rowHeader);
 
+                // 填充每个学生的知识点掌握情况
                 const valuesRow = document.createElement('tr');
-                const knowledgePointsValues = Object.values(student.knowledge_points)
-                    .map(value => value.toFixed(2)).join('</td><td>');
+                const knowledgePointsValues = knowledgePointsNames.map(knowledgePointName => {
+                    // 查找对应知识点的掌握情况
+                    const knowledge = student.knowledge_points.find(knowledge => Object.keys(knowledge)[0] === knowledgePointName);
+                    return knowledge ? parseFloat(Object.values(knowledge)[0]).toFixed(2) : 'N/A'; // 格式化并检查是否存在该知识点
+                }).join('</td><td>'); // 格式化成单元格形式
                 valuesRow.innerHTML = `<td>${knowledgePointsValues}</td>`;
                 atRiskStudentsBody.appendChild(valuesRow);
             });
 
+
             // 班级薄弱知识点表格
             const weakKnowledgePointsBody = document.getElementById('weakKnowledgePointsBody');
-            Object.entries(data.weak_knowledge_point_top10).forEach(([point, probability]) => {
+
+// 遍历每个知识点
+            data.weak_knowledge_point_topk.forEach(knowledgePoint => {
+                // 提取知识点名称和概率
+                const point = Object.keys(knowledgePoint)[0];
+                const probability = knowledgePoint[point];
+
+                // 创建并填充表格行
                 const row = document.createElement('tr');
                 row.innerHTML = `<td>${point}</td><td>${probability}</td>`;
                 weakKnowledgePointsBody.appendChild(row);
@@ -204,14 +226,17 @@
 
             // 班级知识点掌握情况 - 多个雷达图和柱状图
             const classKnowledgePointsSection = document.getElementById('classKnowledgePointsSection');
-            const knowledgePointsEntries = Object.entries(data.class_knowledge_points);
+            const knowledgePoints = data.class_knowledge_points; // 假设这个数据是数组形式
 
-            for (let i = 0; i < knowledgePointsEntries.length; i += pointsPerChart) {
-                const group = knowledgePointsEntries.slice(i, i + pointsPerChart);
-                const radarKeys = group.map(([key]) => key);
-                const radarValues = group.map(([, value]) => value);
+            const pointsPerChart = 6; // 每张图展示的知识点数目
 
-                // 雷达图容器
+            for (let i = 0; i < knowledgePoints.length; i += pointsPerChart) {
+                // 切割出当前组的知识点数据
+                const group = knowledgePoints.slice(i, i + pointsPerChart);
+                const radarKeys = group.map(item => Object.keys(item)[0]); // 提取知识点名称
+                const radarValues = group.map(item => Object.values(item)[0]); // 提取知识点掌握情况
+
+                // 创建雷达图容器
                 const radarContainer = document.createElement('div');
                 radarContainer.classList.add('chart-container');
                 const radarDiv = document.createElement('div');
@@ -219,7 +244,7 @@
                 radarContainer.appendChild(radarDiv);
                 classKnowledgePointsSection.appendChild(radarContainer);
 
-                // 柱状图容器
+                // 创建柱状图容器
                 const barContainer = document.createElement('div');
                 barContainer.classList.add('chart-container');
                 const barDiv = document.createElement('div');
@@ -227,13 +252,13 @@
                 barContainer.appendChild(barDiv);
                 classKnowledgePointsSection.appendChild(barContainer);
 
-                // 雷达图
+                // 雷达图配置
                 const radarChart = echarts.init(radarDiv);
                 const radarOption = {
-                    title: { text: `知识点掌握情况 - 雷达图 ${i / pointsPerChart + 1}`, left: 'center' },
+                    title: { text: `知识点掌握情况 - 雷达图 ${Math.floor(i / pointsPerChart) + 1}`, left: 'center' },
                     tooltip: {},
                     radar: {
-                        indicator: radarKeys.map((key) => ({ name: key, max: 1 })),
+                        indicator: radarKeys.map((key) => ({ name: key, max: 1 })), // 设置最大值为1
                         shape: 'circle',
                         splitNumber: 5,
                     },
@@ -244,10 +269,10 @@
                 };
                 radarChart.setOption(radarOption);
 
-                // 柱状图
+                // 柱状图配置
                 const barChart = echarts.init(barDiv);
                 const barOption = {
-                    title: { text: `知识点掌握情况 - 柱状图 ${i / pointsPerChart + 1}`, left: 'center' },
+                    title: { text: `知识点掌握情况 - 柱状图 ${Math.floor(i / pointsPerChart) + 1}`, left: 'center' },
                     xAxis: { type: 'category', data: radarKeys },
                     yAxis: { type: 'value', max: 1 },
                     series: [{
